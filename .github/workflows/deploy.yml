@@ -35,7 +35,10 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/a-plus-demo
-            git pull --ff-only origin main
+            curl -fsSL "https://codeload.github.com/${{ github.repository }}/tar.gz/${{ github.sha }}" -o /tmp/a-plus-demo.tar.gz
+            tar -xzf /tmp/a-plus-demo.tar.gz --strip-components=1 -C /opt/a-plus-demo
+            printf '%s\n' '${{ github.sha }}' > .deployed-commit
+            rm -f /tmp/a-plus-demo.tar.gz
             .venv/bin/python -m pip install -r requirements.txt
             sudo systemctl restart a-plus-demo
             curl --fail --retry 3 --retry-delay 2 http://127.0.0.1:8000/health
