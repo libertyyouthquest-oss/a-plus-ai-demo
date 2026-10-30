@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 应用构想分析器</title>
+  <style>
+    :root{--ink:#17211b;--muted:#607066;--paper:#f4f3ed;--card:#fff;--line:#dce2dc;--green:#176b4d;--soft:#e8f2ec;--red:#a13b32}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.7 "Microsoft YaHei",Arial,sans-serif}
+    .wrap{max-width:1040px;margin:0 auto;padding:42px 24px 56px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:38px}
+    .brand{font-weight:700;letter-spacing:.08em}.badge{font:12px Consolas,monospace;border:1px solid var(--line);background:#fff;padding:4px 10px;border-radius:20px}
+    .eyebrow{color:var(--green);font-size:12px;font-weight:700;letter-spacing:.16em}h1{font-size:36px;line-height:1.25;margin:10px 0 12px;letter-spacing:-.03em}.lead{color:var(--muted);margin:0 0 30px;max-width:690px}
+    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:0 8px 24px rgba(23,33,27,.035)}
+    label{font-weight:700;display:block;margin-bottom:10px}textarea{width:100%;min-height:154px;resize:vertical;border:1px solid #cbd5cd;border-radius:9px;padding:13px 14px;font:inherit;color:inherit;background:#fbfcfa}textarea:focus{outline:2px solid #9ac4ae;border-color:var(--green)}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px}.hint{font-size:12px;color:var(--muted)}button{border:0;border-radius:8px;background:var(--green);color:white;padding:11px 19px;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+    #message{min-height:26px;margin-top:12px;color:var(--red)}#result{white-space:pre-wrap;line-height:1.85;margin-top:8px}.placeholder{color:var(--muted)}
+    h2{font-size:17px;margin:0 0 16px}.status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:20px}.dot{width:8px;height:8px;border-radius:50%;background:#aaa}.dot.ok{background:#2e8b62}.meta{font:12px Consolas,monospace;color:var(--muted);margin-top:14px}
+    #history{list-style:none;margin:0;padding:0}#history li{border-top:1px solid var(--line);padding:13px 0}#history li:first-child{border-top:0;padding-top:0}.idea{font-weight:700}.date{font-size:12px;color:var(--muted)}
+    footer{margin-top:26px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:16px}a{color:var(--green)}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}h1{font-size:29px}.wrap{padding-top:28px}.top{margin-bottom:28px}}
+    @media print{button,textarea{display:none}.card{box-shadow:none}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top"><div class="brand">A+ / AI DEPLOY DEMO</div><span class="badge" id="version">{{ version }}</span></div>
+    <div class="eyebrow">REAL MODEL · REAL API · SQLITE</div>
+    <h1>AI 应用构想分析器</h1>
+    <p class="lead">输入一个真实想法，后端调用大模型生成最小产品分析，并把结果写入 SQLite。这个页面用于演示从本地开发到公网部署的完整链路。</p>
+    <div class="grid">
+      <section class="card">
+        <h2>核心 AI 功能</h2>
+        <label for="idea">你想做什么应用？</label>
+        <textarea id="idea" maxlength="1000" placeholder="例如：面向大学社团的活动策划助手，根据人数、预算和场地生成活动方案。"></textarea>
+        <div class="row"><span class="hint">4–1000 个字符 · 实际响应时间由本次请求测量</span><button id="run">生成分析</button></div>
+        <div id="message" role="alert"></div>
+        <div id="result" class="placeholder">模型返回结果会显示在这里。</div>
+        <div class="meta" id="elapsed"></div>
+      </section>
+      <aside class="card">
+        <h2>运行状态与历史</h2>
+        <div class="status"><span class="dot" id="dot"></span><span id="health">正在检查 /health</span></div>
+        <ul id="history"><li class="placeholder">正在读取数据库记录…</li></ul>
+      </aside>
+    </div>
+    <footer><span>密钥仅由服务端环境变量读取；本页面不包含 API Key。</span><a href="/health" target="_blank">健康检查 JSON</a></footer>
+  </main>
+<script>
+const idea=document.querySelector('#idea'),run=document.querySelector('#run'),message=document.querySelector('#message'),result=document.querySelector('#result'),elapsed=document.querySelector('#elapsed');
+async function loadHealth(){try{const r=await fetch('/health');const d=await r.json();document.querySelector('#health').textContent=`${d.status} · 数据库 ${d.database} · 模型配置 ${d.model_configured?'已就绪':'未配置'}`;document.querySelector('#dot').className='dot'+(d.status==='ok'?' ok':'');document.querySelector('#version').textContent=d.version;}catch(e){document.querySelector('#health').textContent='健康检查失败';}}
+async function loadHistory(){try{const r=await fetch('/api/history');const d=await r.json();const list=document.querySelector('#history');list.textContent='';if(!d.items.length){list.innerHTML='<li class="placeholder">尚无记录，完成一次模型分析后会写入。</li>';return;}for(const item of d.items){const li=document.createElement('li');const title=document.createElement('div');title.className='idea';title.textContent=item.idea;const date=document.createElement('div');date.className='date';date.textContent=`#${item.id} · ${item.created_at} · ${item.model}`;li.append(title,date);list.append(li);}}catch(e){document.querySelector('#history').textContent='历史记录读取失败';}}
+run.addEventListener('click',async()=>{message.textContent='';elapsed.textContent='';if(!idea.value.trim()){message.textContent='请先输入一个 AI 应用想法。';idea.focus();return;}run.disabled=true;run.textContent='正在调用模型…';result.className='placeholder';result.textContent='请求已发送到后端，请等待真实模型返回。';try{const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idea:idea.value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'请求失败');result.className='';result.textContent=d.item.result;elapsed.textContent=`实测 ${d.elapsed_ms} ms · SQLite 记录 #${d.item.id} · ${d.item.model}`;await loadHistory();}catch(e){result.className='placeholder';result.textContent='未生成结果。';message.textContent=e.message;}finally{run.disabled=false;run.textContent='生成分析';}});
+loadHealth();loadHistory();
+</script>
+</body>
+</html>

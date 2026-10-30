@@ -1,0 +1,44 @@
+name: test-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.SERVER_HOST }}
+          username: ${{ vars.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/a-plus-demo
+            git pull --ff-only origin main
+            .venv/bin/python -m pip install -r requirements.txt
+            sudo systemctl restart a-plus-demo
+            curl --fail --retry 3 --retry-delay 2 http://127.0.0.1:8000/health
+
+      - name: Verify public health endpoint
+        run: curl --fail --retry 3 --retry-delay 2 "http://${{ vars.SERVER_HOST }}/health"

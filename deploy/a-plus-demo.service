@@ -1,0 +1,18 @@
+[Unit]
+Description=A+ AI Demo
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/a-plus-demo
+EnvironmentFile=/opt/a-plus-demo/.env
+ExecStart=/opt/a-plus-demo/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:8000 app:app
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
