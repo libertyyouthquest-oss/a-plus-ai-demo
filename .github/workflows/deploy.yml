@@ -41,7 +41,7 @@ jobs:
             rm -f /tmp/a-plus-demo.tar.gz
             .venv/bin/python -m pip install -r requirements.txt
             sudo systemctl restart a-plus-demo
-            curl --fail --retry 3 --retry-delay 2 http://127.0.0.1:8000/health
+            curl --fail --retry 8 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/health
 
       - name: Verify public health endpoint
-        run: curl --fail --retry 3 --retry-delay 2 "http://${{ vars.SERVER_HOST }}/health"
+        run: curl --fail --retry 8 --retry-connrefused --retry-delay 1 "http://${{ vars.SERVER_HOST }}/health"
